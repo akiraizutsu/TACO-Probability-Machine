@@ -665,7 +665,7 @@ body::before {
 
 <div class="topbar">
   <div class="live"><span class="dot"></span><span class="mono">TACO MONITOR v1.0</span></div>
-  <span class="mono">2026年4月時点</span>
+  <span class="mono" id="topbarDate"></span>
 </div>
 
 <div class="main-content">
@@ -780,6 +780,11 @@ body::before {
 </section>
 
 <script>
+(function() {
+  var now = new Date();
+  document.getElementById('topbarDate').textContent = now.getFullYear() + '年' + (now.getMonth() + 1) + '月' + now.getDate() + '日時点';
+})();
+
 var EVENTS = [];
 
 function scoreColor(s) { return s >= 80 ? 'var(--salsa)' : s >= 50 ? 'var(--queso)' : 'var(--guac)'; }
