@@ -572,7 +572,6 @@ body::before {
   transition: opacity 0.15s;
   z-index: 200;
 }
-.timeline-node:hover .timeline-score-tip { opacity: 1; }
 
 .method {
   padding: 40px 20px;
@@ -931,6 +930,7 @@ function renderTimeline(evts) {
   var track = document.getElementById('timelineTrack');
   var nodes = track.querySelectorAll('.timeline-node');
   for (var i = nodes.length - 1; i >= 0; i--) track.removeChild(nodes[i]);
+  document.querySelectorAll('body > .timeline-score-tip').forEach(function(t) { t.remove(); });
 
   if (evts.length === 0) return;
 
@@ -990,15 +990,19 @@ function renderTimeline(evts) {
     nameEl.className = 'timeline-name';
     nameEl.textContent = ev.name;
 
-    node.appendChild(tip);
     node.appendChild(dot);
     node.appendChild(dateEl);
     node.appendChild(nameEl);
+    document.body.appendChild(tip);
 
     node.addEventListener('mouseenter', function() {
       var rect = dot.getBoundingClientRect();
       tip.style.left = rect.left + rect.width / 2 - tip.offsetWidth / 2 + 'px';
       tip.style.top = rect.top - tip.offsetHeight - 8 + 'px';
+      tip.style.opacity = '1';
+    });
+    node.addEventListener('mouseleave', function() {
+      tip.style.opacity = '0';
     });
 
     node.addEventListener('click', function() {
