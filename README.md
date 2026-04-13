@@ -1,83 +1,83 @@
 # TACO Probability Machine
 
-**Trump Always Chickens Out** — A satirical dashboard tracking anomalous trading patterns observed before major U.S. policy reversals and geopolitical announcements (2025-2026).
+**Trump Always Chickens Out** — 米国の主要政策転換・地政学的発表の直前に観測された異常取引パターンを追跡する風刺ダッシュボード（2025-2026年）。
 
-Live: [akiraizutsu.github.io/taco-probability-machine](https://akiraizutsu.github.io/taco-probability-machine/)
+公開URL: [akiraizutsu.github.io/taco-probability-machine](https://akiraizutsu.github.io/taco-probability-machine/)
 
-## Background
+## 背景
 
-Between April 2025 and April 2026, a series of high-profile U.S. policy announcements were preceded by statistically unusual trading activity across equities, derivatives, commodities, and prediction markets. In several cases, newly created accounts on decentralized platforms executed large, precisely timed bets minutes before public announcements, generating significant profits.
+2025年4月から2026年4月にかけて、米国の主要な政策発表の前に、株式・デリバティブ・コモディティ・予測市場にわたる統計的に異常な取引活動が繰り返し確認されました。複数の事例では、分散型プラットフォーム上の新規作成アカウントが、公式発表の数分前に大規模かつ精密にタイミングを合わせた取引を実行し、多額の利益を得ています。
 
-This dashboard aggregates publicly available data from these incidents into a single interface for research and commentary purposes.
+本ダッシュボードは、これらのインシデントに関する公開データを調査・論評目的で集約したものです。
 
-## Tracked Events
+## 追跡イベント一覧
 
-| Date | Event | Pre-signal Window | Estimated Profit | Score |
-|------|-------|-------------------|-----------------|-------|
-| 2025-04-09 | 90-day tariff pause | 18 min | $30M+ | 95 |
-| 2025-10-10 | China 100% tariff (rare earth retaliation) | 30 min | $160M | 88 |
-| 2026-01-03 | Venezuela — Maduro detention | Hours | $400K | 82 |
-| 2026-02-28 | Iran strikes commenced | 6 days (crypto prep) | $2M+ | 91 |
-| 2026-03-23 | Iran energy facility strike postponement | 15 min | est. $760M volume | 97 |
-| 2026-04-07 | U.S.–Iran ceasefire announcement | Minutes | $72K-$200K per acct | 96 |
+| 日付 | イベント | 事前シグナル | 推定利益 | スコア |
+|------|---------|------------|---------|--------|
+| 2025-04-09 | 関税90日間一時停止 | 18分前 | $30M+ | 95 |
+| 2025-10-10 | 対中100%関税（レアアース報復） | 30分前 | $160M | 88 |
+| 2026-01-03 | ベネズエラ — マドゥロ拘束 | 数時間前 | $400K | 82 |
+| 2026-02-28 | イラン攻撃開始 | 6日間（暗号資産準備） | $2M+ | 91 |
+| 2026-03-23 | イランエネルギー施設攻撃延期 | 15分前 | 推定出来高$760M | 97 |
+| 2026-04-07 | 米イラン停戦発表 | 数分前 | $72K〜$200K/垢 | 96 |
 
-## Features
+## 機能
 
-### Anomaly Score Gauge
-Composite score (0-100) derived from pre-announcement signal timing, abnormal volume ratios, estimated profit scale, new account surges, and cross-market correlation. Rendered with spring-physics animation (requestAnimationFrame with damped oscillation).
+### アノマリースコアゲージ
+発表前シグナルのタイミング、異常出来高比率、推定利益規模、新規アカウント急増、複数市場同時異常を複合的にスコアリング（0-100）。requestAnimationFrameによるスプリング物理アニメーション（減衰振動）で描画。
 
-### TACO Probability Simulator
-Interactive tool allowing users to adjust four market indicators and compute a hypothetical anomaly score in real-time:
+### TACOりそう度シミュレーター
+4つの市場指標をスライダーで調整し、仮想的なアノマリースコアをリアルタイム算出するインタラクティブツール:
 
-- **VIX Index** (weight: 25%) — Market fear gauge
-- **Put/Call Ratio** (weight: 20%) — Options sentiment
-- **Abnormal Options Volume Multiplier** (weight: 35%) — Deviation from baseline
-- **Polymarket New Accounts** (weight: 20%) — Prediction market activity spike
+- **VIX指数**（重み: 25%）— 市場の恐怖指数
+- **Put/Callレシオ**（重み: 20%）— オプション市場のセンチメント
+- **オプション出来高倍率**（重み: 35%）— ベースラインからの乖離
+- **Polymarket新規アカウント数**（重み: 20%）— 予測市場のアクティビティスパイク
 
-### Event Timeline
-Horizontal scrollable timeline plotting events chronologically. Node size scales with anomaly score. Click-to-expand interaction links timeline nodes to detailed signal cards below.
+### イベントタイムライン
+横スクロール式のタイムラインにイベントを時系列プロット。ノードのサイズはアノマリースコアに比例。クリックで下部のシグナルカードと連動展開。
 
-### Signal Detail Cards
-Expandable cards per event showing granular anomaly indicators (pre-signal timing, position sizes, platform, price movements, account patterns). Filterable by category: tariff, military, geopolitical.
+### シグナル詳細カード
+イベントごとの展開式カードで、個別のアノマリー指標（事前シグナルタイミング、ポジション規模、プラットフォーム、価格変動、アカウントパターン）を表示。関税・軍事・地政学のカテゴリでフィルタリング可能。
 
-## Scoring Methodology
+## スコアリング方法論
 
-Each event is scored on a 0-100 scale based on five factors:
+各イベントは以下の5要素に基づき0-100のスケールで評価:
 
-1. **Signal timing** — Shorter pre-announcement windows score higher (18 minutes > 6 days)
-2. **Volume anomaly** — Ratio of observed volume to historical baseline
-3. **Profit concentration** — Estimated returns relative to position size
-4. **Account novelty** — Proportion of newly created or single-use accounts
-5. **Cross-market correlation** — Simultaneous anomalies across asset classes
+1. **シグナルタイミング** — 発表前の時間窓が短いほど高スコア（18分 > 6日間）
+2. **出来高異常度** — 観測出来高のヒストリカルベースラインに対する比率
+3. **利益集中度** — ポジションサイズに対する推定リターン
+4. **アカウント新規性** — 新規作成・単発使用アカウントの割合
+5. **クロスマーケット相関** — 複数資産クラスにわたる同時異常の発生
 
-Scores are editorial assessments informed by quantitative data, not algorithmic outputs. They reflect the combined severity and specificity of observed anomalies.
+スコアは定量データに基づくエディトリアル評価であり、アルゴリズム出力ではありません。観測されたアノマリーの重大性と特異性を総合的に反映しています。
 
-## Data Sources
+## データソース
 
-All data is derived from publicly available sources:
+すべてのデータは公開情報に基づいています:
 
-- **Market data**: LSEG, Dow Jones Market Data, Unusual Whales
-- **Regulatory filings**: SEC EDGAR
-- **Blockchain analytics**: Dune Analytics, Polymarket on-chain transaction data
-- **Reporting**: Reuters, Financial Times, NPR, ProPublica, Al Jazeera
+- **市場データ**: LSEG, Dow Jones Market Data, Unusual Whales
+- **規制当局開示**: SEC EDGAR
+- **ブロックチェーン分析**: Dune Analytics, Polymarketオンチェーントランザクションデータ
+- **報道**: Reuters, Financial Times, NPR, ProPublica, Al Jazeera
 
-No proprietary data or non-public information was used.
+独自データおよび非公開情報は使用していません。
 
-## Technical Details
+## 技術仕様
 
-- Single HTML file (~1,200 lines), zero build step
-- No external JavaScript dependencies
-- External dependency: Google Fonts (Space Mono, Outfit, Zen Kaku Gothic New)
-- Hosted on GitHub Pages as a static site
-- Animation: requestAnimationFrame with spring physics (damped harmonic oscillator)
-- Responsive design with mobile breakpoints
+- 単一HTMLファイル（約1,200行）、ビルドステップなし
+- 外部JavaScriptライブラリ依存なし
+- 外部依存: Google Fonts（Space Mono, Outfit, Zen Kaku Gothic New）
+- GitHub Pagesで静的ホスティング
+- アニメーション: requestAnimationFrame + スプリング物理演算（減衰調和振動子）
+- モバイルブレークポイント対応のレスポンシブデザイン
 
-## Disclaimer
+## 免責事項
 
-This is satirical commentary based on public market data. It is not a trading tool, financial advice, or accusation of wrongdoing. The presence of anomalous trading patterns does not, by itself, establish illegal activity. Correlation in timing does not prove causation or coordination.
+これは公開市場データに基づく風刺的コメンタリーです。取引ツール、投資助言、または不正行為の告発ではありません。異常な取引パターンの存在は、それ自体では違法行為を立証するものではありません。タイミングの相関は因果関係や共謀を証明しません。
 
-If you are engaged in insider trading, this dashboard is redundant — you already know.
+インサイダー取引をしている方にとって、このダッシュボードは不要です — もう知ってるはずなので。
 
-## License
+## ライセンス
 
 MIT
