@@ -558,21 +558,19 @@ body::before {
   text-align: center;
 }
 .timeline-score-tip {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
+  position: fixed;
   font-family: 'Space Mono', monospace;
   font-size: 12px;
   font-weight: 700;
-  padding: 3px 8px;
+  padding: 6px 12px;
   border-radius: 6px;
   background: var(--bg3);
   border: 1px solid var(--border2);
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s;
+  transition: opacity 0.15s;
+  z-index: 200;
 }
 .timeline-node:hover .timeline-score-tip { opacity: 1; }
 
@@ -996,6 +994,12 @@ function renderTimeline(evts) {
     node.appendChild(dot);
     node.appendChild(dateEl);
     node.appendChild(nameEl);
+
+    node.addEventListener('mouseenter', function() {
+      var rect = dot.getBoundingClientRect();
+      tip.style.left = rect.left + rect.width / 2 - tip.offsetWidth / 2 + 'px';
+      tip.style.top = rect.top - tip.offsetHeight - 8 + 'px';
+    });
 
     node.addEventListener('click', function() {
       var cards = document.querySelectorAll('.event-card');
