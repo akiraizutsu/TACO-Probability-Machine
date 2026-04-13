@@ -2,7 +2,7 @@
 
 **Trump Always Chickens Out** — 米国の主要政策転換・地政学的発表の直前に観測された異常取引パターンを追跡する風刺ダッシュボード（2025-2026年）。
 
-公開URL: [akiraizutsu.github.io/taco-probability-machine](https://akiraizutsu.github.io/taco-probability-machine/)
+公開URL: [taco-app-production.up.railway.app](https://taco-app-production.up.railway.app)
 
 ## 背景
 
@@ -26,13 +26,16 @@
 ### アノマリースコアゲージ
 発表前シグナルのタイミング、異常出来高比率、推定利益規模、新規アカウント急増、複数市場同時異常を複合的にスコアリング（0-100）。requestAnimationFrameによるスプリング物理アニメーション（減衰振動）で描画。
 
-### TACOりそう度シミュレーター
-4つの市場指標をスライダーで調整し、仮想的なアノマリースコアをリアルタイム算出するインタラクティブツール:
+### 自動スクリーニング（1日2回）
+NYSE開場（9:30 EST / JST 22:30）と閉場（16:00 EST / JST 翌5:00）のタイミングで市場データを自動取得し、TACOスコアを算出:
 
-- **VIX指数**（重み: 25%）— 市場の恐怖指数
-- **Put/Callレシオ**（重み: 20%）— オプション市場のセンチメント
-- **オプション出来高倍率**（重み: 35%）— ベースラインからの乖離
-- **Polymarket新規アカウント数**（重み: 20%）— 予測市場のアクティビティスパイク
+- **VIX指数** — yfinance経由でリアルタイム取得
+- **Put/Callレシオ** — SPYオプションチェーンから算出
+- **オプション出来高倍率** — SPY出来高 vs 20日移動平均
+- **Polymarket異常検出** — 政治系マーケットの出来高スパイク・新規アカウント推定
+
+### TACOりそう度シミュレーター
+4つの市場指標をスライダーで調整し、仮想的なアノマリースコアをリアルタイム算出するインタラクティブツール。最新の市場データがスライダーのデフォルト値に自動反映。
 
 ### イベントタイムライン
 横スクロール式のタイムラインにイベントを時系列プロット。ノードのサイズはアノマリースコアに比例。クリックで下部のシグナルカードと連動展開。
@@ -52,25 +55,49 @@
 
 スコアは定量データに基づくエディトリアル評価であり、アルゴリズム出力ではありません。観測されたアノマリーの重大性と特異性を総合的に反映しています。
 
+## アーキテクチャ
+
+```
+FastAPI (Python 3.12)
+├── API: /api/events, /api/market/latest, /api/screening/run
+├── PostgreSQL: events, market_data, screening_log
+├── APScheduler: NYSE開場/閉場の1日2回自動スクリーニング
+├── yfinance: VIX, SPYオプション出来高
+├── Polymarket API: 政治系マーケット異常検出
+└── Jinja2テンプレート: ダッシュボードHTML配信
+```
+
+- **ホスティング**: Railway (Dockerfile)
+- **データベース**: PostgreSQL (Railway addon)
+- **フロントエンド**: Vanilla JS + fetch API（外部ライブラリ依存なし）
+- **アニメーション**: requestAnimationFrame + スプリング物理演算（減衰調和振動子）
+- **レスポンシブ**: モバイルブレークポイント対応
+
 ## データソース
 
 すべてのデータは公開情報に基づいています:
 
-- **市場データ**: LSEG, Dow Jones Market Data, Unusual Whales
+- **市場データ**: LSEG, Dow Jones Market Data, Unusual Whales, yfinance
 - **規制当局開示**: SEC EDGAR
 - **ブロックチェーン分析**: Dune Analytics, Polymarketオンチェーントランザクションデータ
+- **予測市場**: Polymarket API
 - **報道**: Reuters, Financial Times, NPR, ProPublica, Al Jazeera
 
 独自データおよび非公開情報は使用していません。
 
-## 技術仕様
+## ローカル開発
 
-- 単一HTMLファイル（約1,200行）、ビルドステップなし
-- 外部JavaScriptライブラリ依存なし
-- 外部依存: Google Fonts（Space Mono, Outfit, Zen Kaku Gothic New）
-- GitHub Pagesで静的ホスティング
-- アニメーション: requestAnimationFrame + スプリング物理演算（減衰調和振動子）
-- モバイルブレークポイント対応のレスポンシブデザイン
+```bash
+# PostgreSQLが必要
+createdb taco
+
+# 依存パッケージ
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# 起動
+DATABASE_URL="postgresql://localhost:5432/taco" uvicorn app.main:app --reload
+```
 
 ## 免責事項
 
