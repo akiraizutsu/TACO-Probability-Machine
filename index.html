@@ -5,10 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TACO Probability Machine — Trump Always Chickens Out</title>
 <meta name="description" content="トランプ政策転換前の異常取引パターンを追跡する風刺ダッシュボード。ネタだけどデータはガチ。">
-<meta property="og:title" content="🌮 TACOりそうマシン">
-<meta property="og:description" content="TACOりそう度を計測中。Trump Always Chickens Out — 異常取引アノマリートラッカー。">
+<meta property="og:title" content="🌮 TACOりそうマシン — TACO Probability Machine">
+<meta property="og:description" content="TACOりそう度: 97/100。トランプ政策転換前の異常取引パターンを追跡。風刺です。データはガチ。">
 <meta property="og:type" content="website">
+<meta property="og:image" content="https://akiraizutsu.github.io/taco-probability-machine/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://akiraizutsu.github.io/taco-probability-machine/">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="🌮 TACOりそうマシン — TACO Probability Machine">
+<meta name="twitter:description" content="TACOりそう度: 97/100。トランプ政策転換前の異常取引パターンを追跡。風刺です。データはガチ。">
+<meta name="twitter:image" content="https://akiraizutsu.github.io/taco-probability-machine/og-image.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌮</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -626,6 +633,11 @@ body::before {
 }
 .share-btn:hover { background: var(--text); color: var(--bg); border-color: var(--text); }
 
+.main-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
 @media (max-width: 520px) {
   .signal-grid { grid-template-columns: 1fr; }
   .stats { margin: 0 12px 30px; }
@@ -634,6 +646,9 @@ body::before {
   .stat-val { font-size: 18px; }
   .hero h1 { letter-spacing: -1px; }
   .filters { padding: 0 12px 24px; }
+  .timeline-section { padding: 0 12px 30px; }
+  .timeline-name { font-size: 10px; max-width: 70px; }
+  .timeline-date { font-size: 9px; }
 }
 
 @keyframes fade-up {
@@ -653,6 +668,7 @@ body::before {
   <span class="mono">2026年4月時点</span>
 </div>
 
+<div class="main-content">
 <section class="hero anim">
   <div class="taco-emoji">🌮</div>
   <h1><span class="highlight">TACO</span> Probability<br>Machine</h1>
@@ -725,6 +741,8 @@ body::before {
   </div>
 </div>
 <div class="event-list" id="eventList"></div>
+
+</div>
 
 <section class="method">
   <h2>算出ロジック（半分マジ）</h2>
@@ -1024,15 +1042,32 @@ function renderTimeline(evts) {
   var minDate = parseDate(sorted[0].date).getTime();
   var maxDate = parseDate(sorted[sorted.length - 1].date).getTime();
   var range = maxDate - minDate || 1;
+  var minSpacing = 100;
   var padL = 60, padR = 60;
-  var trackW = Math.max(700, sorted.length * 130);
+  var trackW = Math.max(700, sorted.length * minSpacing + padL + padR);
+
+  var rawPositions = sorted.map(function(ev) {
+    var t = (parseDate(ev.date).getTime() - minDate) / range;
+    return padL + t * (trackW - padL - padR);
+  });
+  for (var pass = 0; pass < 5; pass++) {
+    for (var k = 1; k < rawPositions.length; k++) {
+      var gap = rawPositions[k] - rawPositions[k - 1];
+      if (gap < minSpacing) {
+        var shift = (minSpacing - gap) / 2;
+        rawPositions[k - 1] -= shift;
+        rawPositions[k] += shift;
+      }
+    }
+  }
+  var maxPos = rawPositions[rawPositions.length - 1] + padR;
+  if (maxPos > trackW) trackW = Math.ceil(maxPos);
   track.style.minWidth = trackW + 'px';
 
   var typeColor = { tariff: 'var(--queso)', military: 'var(--salsa)', geopolitical: 'var(--cyan)' };
 
-  sorted.forEach(function(ev) {
-    var t = (parseDate(ev.date).getTime() - minDate) / range;
-    var x = padL + t * (trackW - padL - padR);
+  sorted.forEach(function(ev, idx) {
+    var x = rawPositions[idx];
     var size = 24 + (ev.score / 100) * 24;
 
     var node = document.createElement('div');
