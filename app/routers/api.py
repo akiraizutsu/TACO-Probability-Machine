@@ -1,40 +1,115 @@
-from datetime import date
-from fastapi import APIRouter, Depends, BackgroundTasks
+from datetime import date, datetime
+from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException, status
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Event, MarketData, ScreeningLog
+from app.schemas import EventCreate, EventUpdate
+from app.auth import require_admin
 
 router = APIRouter(prefix="/api")
 
 
+def _event_to_dict(e: Event) -> dict:
+    return {
+        "id": e.id,
+        "date": e.date.strftime("%Y.%m.%d"),
+        "date_iso": e.date.isoformat(),
+        "name": e.name,
+        "type": e.type,
+        "typeLabel": e.type_label,
+        "summary": e.summary,
+        "score": e.score,
+        "signals": e.signals,
+        "is_candidate": e.is_candidate,
+    }
+
+
 @router.get("/events")
-def list_events(type: str | None = None, db: Session = Depends(get_db)):
-    q = db.query(Event).filter(Event.is_candidate == False)
+def list_events(type: str | None = None, include_candidates: bool = False, db: Session = Depends(get_db)):
+    q = db.query(Event)
+    if not include_candidates:
+        q = q.filter(Event.is_candidate == False)
     if type:
         q = q.filter(Event.type == type)
     events = q.order_by(desc(Event.score)).all()
-    return [
-        {
-            "id": e.id, "date": e.date.strftime("%Y.%m.%d"), "name": e.name,
-            "type": e.type, "typeLabel": e.type_label, "summary": e.summary,
-            "score": e.score, "signals": e.signals,
-        }
-        for e in events
-    ]
+    return [_event_to_dict(e) for e in events]
 
 
 @router.get("/events/candidates")
 def list_candidates(db: Session = Depends(get_db)):
     events = db.query(Event).filter(Event.is_candidate == True).order_by(desc(Event.created_at)).all()
-    return [
-        {
-            "id": e.id, "date": e.date.strftime("%Y.%m.%d"), "name": e.name,
-            "type": e.type, "typeLabel": e.type_label, "summary": e.summary,
-            "score": e.score, "signals": e.signals,
-        }
-        for e in events
-    ]
+    return [_event_to_dict(e) for e in events]
+
+
+@router.get("/events/{event_id}")
+def get_event(event_id: str, db: Session = Depends(get_db)):
+    e = db.get(Event, event_id)
+    if not e:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return _event_to_dict(e)
+
+
+@router.post("/events", status_code=201)
+def create_event(
+    payload: EventCreate,
+    db: Session = Depends(get_db),
+    _user: str = Depends(require_admin),
+):
+    if db.get(Event, payload.id):
+        raise HTTPException(status_code=409, detail=f"Event with id '{payload.id}' already exists")
+    event = Event(
+        id=payload.id,
+        date=payload.date,
+        name=payload.name,
+        type=payload.type,
+        type_label=payload.type_label,
+        summary=payload.summary,
+        score=payload.score,
+        signals=[s.model_dump() for s in payload.signals],
+        is_candidate=payload.is_candidate,
+        created_at=datetime.utcnow(),
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return _event_to_dict(event)
+
+
+@router.put("/events/{event_id}")
+def update_event(
+    event_id: str,
+    payload: EventUpdate,
+    db: Session = Depends(get_db),
+    _user: str = Depends(require_admin),
+):
+    event = db.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    data = payload.model_dump(exclude_unset=True)
+    if "signals" in data and data["signals"] is not None:
+        data["signals"] = [s if isinstance(s, dict) else s.model_dump() for s in data["signals"]]
+    if "type_label" in data:
+        event.type_label = data.pop("type_label")
+    for key, value in data.items():
+        setattr(event, key, value)
+    db.commit()
+    db.refresh(event)
+    return _event_to_dict(event)
+
+
+@router.delete("/events/{event_id}", status_code=204)
+def delete_event(
+    event_id: str,
+    db: Session = Depends(get_db),
+    _user: str = Depends(require_admin),
+):
+    event = db.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    db.delete(event)
+    db.commit()
+    return None
 
 
 @router.get("/market/latest")

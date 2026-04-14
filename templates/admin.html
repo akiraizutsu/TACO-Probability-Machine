@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — TACO Probability Machine</title>
+<style>
+:root {
+  --bg: #0f1115;
+  --card: #1a1d24;
+  --card2: #252933;
+  --border: #2a2f3a;
+  --border2: #3a4050;
+  --text: #e8e8e8;
+  --text2: #a0a6b3;
+  --text3: #6b7280;
+  --primary: #ea580c;
+  --primary-hover: #f97316;
+  --red: #ef4444;
+  --green: #10b981;
+  --amber: #f59e0b;
+  --blue: #3b82f6;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 24px;
+  line-height: 1.6;
+}
+.wrap { max-width: 1100px; margin: 0 auto; }
+
+h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+h2 { font-size: 16px; font-weight: 700; margin-bottom: 12px; color: var(--text); }
+h3 { font-size: 13px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+.topbar a { color: var(--text3); text-decoration: none; font-size: 13px; }
+.topbar a:hover { color: var(--primary); }
+
+.section { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border2); }
+.btn-secondary:hover { border-color: var(--text3); }
+.btn-danger { background: var(--red); color: white; }
+.btn-danger:hover { background: #dc2626; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--text3); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+tr:hover td { background: var(--card2); }
+td .actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.tag-tariff { background: rgba(245,158,11,0.15); color: #fbbf24; }
+.tag-military { background: rgba(239,68,68,0.15); color: #f87171; }
+.tag-geopolitical { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.tag-candidate { background: rgba(168,85,247,0.15); color: #c084fc; margin-left: 6px; }
+
+.score-cell {
+  font-family: 'SF Mono', monospace;
+  font-weight: 700;
+}
+.score-cell.high { color: #f87171; }
+.score-cell.mid { color: #fbbf24; }
+.score-cell.low { color: #34d399; }
+
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 4px; font-weight: 600; }
+.field input, .field select, .field textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+}
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--primary); }
+.field textarea { resize: vertical; min-height: 70px; font-family: inherit; }
+.field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.field-help { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+.signals-box { background: var(--bg); border: 1px dashed var(--border2); border-radius: 8px; padding: 14px; }
+.signal-row { display: grid; grid-template-columns: 1fr 1fr 100px 32px; gap: 8px; margin-bottom: 8px; align-items: center; }
+.signal-row:last-child { margin-bottom: 0; }
+.signal-row input, .signal-row select { padding: 7px 10px; font-size: 12px; }
+.btn-remove {
+  background: transparent;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px;
+  line-height: 1;
+}
+.btn-remove:hover { color: var(--red); }
+
+.signal-cls-red { border-left: 3px solid var(--red) !important; }
+.signal-cls-amber { border-left: 3px solid var(--amber) !important; }
+.signal-cls-green { border-left: 3px solid var(--green) !important; }
+
+.form-actions { display: flex; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 100;
+  transform: translateY(100px);
+  opacity: 0;
+  transition: all 0.3s;
+  max-width: 320px;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { background: var(--green); color: white; }
+.toast.error { background: var(--red); color: white; }
+
+.modal-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 90;
+  overflow-y: auto;
+  padding: 40px 20px;
+}
+.modal-bg.show { display: flex; }
+.modal {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  max-width: 720px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal h2 { margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+.modal-close { background: none; border: none; color: var(--text3); font-size: 22px; cursor: pointer; }
+
+.empty { text-align: center; padding: 40px; color: var(--text3); }
+
+@media (max-width: 640px) {
+  body { padding: 16px 12px; }
+  .signal-row { grid-template-columns: 1fr 1fr; }
+  .signal-row .cls-cell, .signal-row .remove-cell { grid-column: span 1; }
+  th, td { padding: 8px; font-size: 12px; }
+  .topbar { flex-direction: column; gap: 8px; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<div class="topbar">
+  <div>
+    <h1>🌮 Admin</h1>
+    <div style="font-size:12px; color:var(--text3);">TACOイベント管理</div>
+  </div>
+  <a href="/" target="_blank">ダッシュボードを開く →</a>
+</div>
+
+<div class="section">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+    <h2>イベント一覧</h2>
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-secondary btn-sm" id="refreshBtn">🔄 再読み込み</button>
+      <button class="btn btn-primary btn-sm" id="newBtn">+ 新規追加</button>
+    </div>
+  </div>
+  <div id="tableWrap">
+    <div class="empty">読み込み中...</div>
+  </div>
+</div>
+
+</div>
+
+<!-- Event Form Modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2>
+      <span id="modalTitle">イベント編集</span>
+      <button class="modal-close" id="modalClose">×</button>
+    </h2>
+
+    <form id="eventForm">
+      <div class="field-row">
+        <div class="field">
+          <label>ID（英数・ハイフンのみ）<span style="color:var(--red);">*</span></label>
+          <input type="text" name="id" required pattern="^[a-z0-9][a-z0-9\-]*$" placeholder="例: iran-new-2026">
+          <div class="field-help">作成後は変更不可</div>
+        </div>
+        <div class="field">
+          <label>日付 <span style="color:var(--red);">*</span></label>
+          <input type="date" name="date" required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>イベント名（日本語） <span style="color:var(--red);">*</span></label>
+        <input type="text" name="name" required placeholder="例: 対EU関税25%発表">
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>カテゴリ <span style="color:var(--red);">*</span></label>
+          <select name="type" required id="typeSelect">
+            <option value="tariff">tariff — 関税</option>
+            <option value="military">military — 軍事</option>
+            <option value="geopolitical">geopolitical — 地政学</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>カテゴリ表示名 <span style="color:var(--red);">*</span></label>
+          <input type="text" name="type_label" required placeholder="関税 / 軍事 / 地政学">
+        </div>
+        <div class="field">
+          <label>TACOスコア (0-100) <span style="color:var(--red);">*</span></label>
+          <input type="number" name="score" required min="0" max="100" value="80">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>サマリー（日本語） <span style="color:var(--red);">*</span></label>
+        <textarea name="summary" required placeholder="観測された異常取引パターンの概要..."></textarea>
+      </div>
+
+      <div class="field">
+        <label>検出シグナル <span style="color:var(--red);">*</span></label>
+        <div class="signals-box">
+          <div id="signalsList"></div>
+          <button type="button" class="btn btn-secondary btn-sm" id="addSignalBtn" style="margin-top:8px;">+ シグナルを追加</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" name="is_candidate" style="width:auto;">
+          <span>候補扱い（ダッシュボード非表示）</span>
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="submitBtn">保存</button>
+        <button type="button" class="btn btn-secondary" id="cancelBtn">キャンセル</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/api/events';
+let events = [];
+let editingId = null;
+
+const TYPE_LABEL = { tariff: '関税', military: '軍事', geopolitical: '地政学' };
+
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + (type || 'success');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function scoreCls(s) { return s >= 80 ? 'high' : s >= 50 ? 'mid' : 'low'; }
+
+async function loadEvents() {
+  try {
+    const r = await fetch(API + '?include_candidates=true');
+    if (!r.ok) throw new Error('API error');
+    events = await r.json();
+    renderTable();
+  } catch (e) {
+    toast('読み込みに失敗しました: ' + e.message, 'error');
+  }
+}
+
+function renderTable() {
+  const wrap = document.getElementById('tableWrap');
+  if (events.length === 0) {
+    wrap.innerHTML = '<div class="empty">イベントがまだありません</div>';
+    return;
+  }
+  const sorted = [...events].sort((a, b) => b.date_iso.localeCompare(a.date_iso));
+  let html = '<table><thead><tr><th>日付</th><th>イベント</th><th>カテゴリ</th><th style="text-align:right;">スコア</th><th style="text-align:right;">シグナル</th><th></th></tr></thead><tbody>';
+  for (const ev of sorted) {
+    const candidate = ev.is_candidate ? '<span class="tag tag-candidate">候補</span>' : '';
+    html += `<tr>
+      <td>${ev.date_iso}</td>
+      <td><strong>${escapeHtml(ev.name)}</strong>${candidate}<br><span style="color:var(--text3); font-size:11px;">${ev.id}</span></td>
+      <td><span class="tag tag-${ev.type}">${escapeHtml(ev.typeLabel || '')}</span></td>
+      <td style="text-align:right;"><span class="score-cell ${scoreCls(ev.score)}">${ev.score}</span></td>
+      <td style="text-align:right;">${ev.signals.length}件</td>
+      <td><div class="actions">
+        <button class="btn btn-secondary btn-sm" data-edit="${ev.id}">編集</button>
+        <button class="btn btn-danger btn-sm" data-del="${ev.id}">削除</button>
+      </div></td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => openEdit(b.dataset.edit));
+  wrap.querySelectorAll('[data-del]').forEach(b => b.onclick = () => del(b.dataset.del));
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ---------- Signal dynamic form ----------
+function signalRow(s) {
+  s = s || { label: '', val: '', cls: 'amber' };
+  const div = document.createElement('div');
+  div.className = 'signal-row signal-cls-' + s.cls;
+  div.innerHTML = `
+    <input type="text" class="s-label" placeholder="ラベル（例: 事前シグナル）" value="${escapeHtml(s.label)}" required>
+    <input type="text" class="s-val" placeholder="値（例: 18分前）" value="${escapeHtml(s.val)}" required>
+    <select class="s-cls cls-cell">
+      <option value="red" ${s.cls==='red'?'selected':''}>🔴 red</option>
+      <option value="amber" ${s.cls==='amber'?'selected':''}>🟡 amber</option>
+      <option value="green" ${s.cls==='green'?'selected':''}>🟢 green</option>
+    </select>
+    <button type="button" class="btn-remove remove-cell" title="削除">×</button>
+  `;
+  div.querySelector('.s-cls').onchange = (e) => {
+    div.className = 'signal-row signal-cls-' + e.target.value;
+  };
+  div.querySelector('.btn-remove').onclick = () => div.remove();
+  return div;
+}
+
+function addSignal(s) {
+  document.getElementById('signalsList').appendChild(signalRow(s));
+}
+
+function readSignals() {
+  const rows = document.querySelectorAll('#signalsList .signal-row');
+  const out = [];
+  for (const row of rows) {
+    out.push({
+      label: row.querySelector('.s-label').value.trim(),
+      val: row.querySelector('.s-val').value.trim(),
+      cls: row.querySelector('.s-cls').value,
+    });
+  }
+  return out;
+}
+
+// ---------- Modal ----------
+function openNew() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = '新規イベント追加';
+  const f = document.getElementById('eventForm');
+  f.reset();
+  f.id.disabled = false;
+  f.date.value = new Date().toISOString().slice(0, 10);
+  f.score.value = 80;
+  f.type_label.value = '関税';
+  document.getElementById('signalsList').innerHTML = '';
+  addSignal();
+  document.getElementById('modalBg').classList.add('show');
+}
+
+function openEdit(id) {
+  const ev = events.find(e => e.id === id);
+  if (!ev) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = 'イベント編集';
+  const f = document.getElementById('eventForm');
+  f.id.value = ev.id; f.id.disabled = true;
+  f.date.value = ev.date_iso;
+  f.name.value = ev.name;
+  f.type.value = ev.type;
+  f.type_label.value = ev.typeLabel;
+  f.score.value = ev.score;
+  f.summary.value = ev.summary;
+  f.is_candidate.checked = !!ev.is_candidate;
+  document.getElementById('signalsList').innerHTML = '';
+  (ev.signals || []).forEach(s => addSignal(s));
+  if ((ev.signals || []).length === 0) addSignal();
+  document.getElementById('modalBg').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalBg').classList.remove('show');
+}
+
+// Auto-update type_label when type changes
+document.getElementById('typeSelect').addEventListener('change', (e) => {
+  document.querySelector('[name=type_label]').value = TYPE_LABEL[e.target.value] || '';
+});
+
+async function submit(e) {
+  e.preventDefault();
+  const f = e.target;
+  const signals = readSignals();
+  if (signals.length === 0 || signals.some(s => !s.label || !s.val)) {
+    toast('シグナルを1つ以上入力してください', 'error');
+    return;
+  }
+
+  const payload = {
+    date: f.date.value,
+    name: f.name.value.trim(),
+    type: f.type.value,
+    type_label: f.type_label.value.trim(),
+    summary: f.summary.value.trim(),
+    score: parseInt(f.score.value, 10),
+    signals,
+    is_candidate: f.is_candidate.checked,
+  };
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  try {
+    let r;
+    if (editingId) {
+      r = await fetch(API + '/' + encodeURIComponent(editingId), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } else {
+      payload.id = f.id.value.trim();
+      r = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    }
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.detail || (r.status + ' エラー'));
+    }
+    toast(editingId ? '更新しました' : '追加しました');
+    closeModal();
+    loadEvents();
+  } catch (err) {
+    toast('保存失敗: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function del(id) {
+  const ev = events.find(e => e.id === id);
+  if (!ev) return;
+  if (!confirm(`「${ev.name}」を削除しますか？\nこの操作は取り消せません。`)) return;
+  try {
+    const r = await fetch(API + '/' + encodeURIComponent(id), { method: 'DELETE' });
+    if (!r.ok && r.status !== 204) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.detail || r.status);
+    }
+    toast('削除しました');
+    loadEvents();
+  } catch (err) {
+    toast('削除失敗: ' + err.message, 'error');
+  }
+}
+
+document.getElementById('newBtn').onclick = openNew;
+document.getElementById('refreshBtn').onclick = loadEvents;
+document.getElementById('modalClose').onclick = closeModal;
+document.getElementById('cancelBtn').onclick = closeModal;
+document.getElementById('addSignalBtn').onclick = () => addSignal();
+document.getElementById('eventForm').onsubmit = submit;
+document.getElementById('modalBg').onclick = (e) => { if (e.target.id === 'modalBg') closeModal(); };
+
+loadEvents();
+</script>
+
+</body>
+</html>
