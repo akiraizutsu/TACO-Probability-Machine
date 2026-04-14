@@ -4,7 +4,7 @@ import logging
 from datetime import date, datetime
 from sqlalchemy import desc
 from app.database import SessionLocal
-from app.models import MarketData, ScreeningLog
+from app.models import MarketData, ScreeningLog, ScoreHistory
 from app.services.market import fetch_vix, fetch_spy_options_volume, fetch_put_call_ratio, reset_errors, last_errors
 from app.services.polymarket import fetch_political_markets, estimate_new_accounts, detect_anomalies
 
@@ -24,9 +24,12 @@ def calc_taco_score(vix: float | None, pcr: float | None, vol_ratio: float | Non
     return round(clamp(vix_norm * 0.25 + pcr_norm * 0.20 + vol_norm * 0.35 + poly_norm * 0.20, 0, 100))
 
 
-def run_daily_screening():
-    """Main screening entry point, called by scheduler."""
-    logger.info("Starting daily screening...")
+def run_daily_screening(screening_type: str = "manual"):
+    """Main screening entry point, called by scheduler.
+
+    screening_type: 'open' (NYSE open), 'close' (NYSE close), or 'manual'
+    """
+    logger.info(f"Starting screening (type={screening_type})...")
     db = SessionLocal()
     try:
         today = date.today()
@@ -76,9 +79,21 @@ def run_daily_screening():
                 taco_score=score, raw_data={"anomalies": anomalies},
             ))
 
-        # 5. Log
+        # 5. Append score history (one row per screening run)
+        poly_anomaly_score = min(len(anomalies) * 10, 100) if anomalies else 0
+        db.add(ScoreHistory(
+            timestamp=datetime.utcnow(),
+            score=score,
+            vix=vix,
+            put_call_ratio=pcr,
+            option_volume_ratio=vol_ratio,
+            polymarket_anomaly_score=poly_anomaly_score,
+            screening_type=screening_type,
+        ))
+
+        # 6. Screening log
         err_str = " | errors: " + "; ".join(f"{k}={v}" for k, v in last_errors.items()) if last_errors else ""
-        summary = f"VIX={vix}, PCR={pcr}, VolRatio={vol_ratio}, PolyAccts={poly_accounts}, Score={score}, Anomalies={len(anomalies)}{err_str}"
+        summary = f"[{screening_type}] VIX={vix}, PCR={pcr}, VolRatio={vol_ratio}, PolyAccts={poly_accounts}, Score={score}, Anomalies={len(anomalies)}{err_str}"
         db.add(ScreeningLog(
             run_at=datetime.utcnow(), status="success",
             summary=summary, new_candidates=len(anomalies),

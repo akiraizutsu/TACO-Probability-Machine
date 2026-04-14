@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException, status
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Event, MarketData, ScreeningLog
+from app.models import Event, MarketData, ScreeningLog, ScoreHistory
 from app.schemas import EventCreate, EventUpdate
 from app.auth import require_admin
 
@@ -125,6 +125,34 @@ def market_latest(db: Session = Depends(get_db)):
         "volume_ratio": row.volume_ratio,
         "polymarket_new_accounts": row.polymarket_new_accounts,
     }
+
+
+@router.get("/score-history")
+def score_history(days: int = 30, db: Session = Depends(get_db)):
+    """Return score history for the last N days.
+
+    Each row is one screening run. The frontend chart aggregates by day.
+    """
+    from datetime import datetime, timedelta
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    rows = (
+        db.query(ScoreHistory)
+        .filter(ScoreHistory.timestamp >= cutoff)
+        .order_by(ScoreHistory.timestamp.asc())
+        .all()
+    )
+    return [
+        {
+            "timestamp": r.timestamp.isoformat() + "Z",
+            "score": r.score,
+            "vix": r.vix,
+            "put_call_ratio": r.put_call_ratio,
+            "option_volume_ratio": r.option_volume_ratio,
+            "polymarket_anomaly_score": r.polymarket_anomaly_score,
+            "type": r.screening_type,
+        }
+        for r in rows
+    ]
 
 
 @router.get("/market/history")

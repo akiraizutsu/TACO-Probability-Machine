@@ -557,6 +557,92 @@ body::before {
   text-overflow: ellipsis;
   text-align: center;
 }
+.chart-section {
+  padding: 0 20px 30px;
+}
+.chart-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.chart-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text3);
+  letter-spacing: 2px;
+}
+.chart-meta {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--text3);
+}
+.chart-wrap {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 16px 12px;
+  position: relative;
+}
+.chart-svg { width: 100%; height: 220px; display: block; }
+.chart-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text3);
+  font-size: 12px;
+}
+.chart-grid-line { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 4; }
+.chart-axis-label { font-family: 'Space Mono', monospace; font-size: 9px; fill: var(--text3); }
+.chart-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart-area { opacity: 0.12; }
+.chart-event-line { stroke: var(--text3); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.5; }
+.chart-event-tag {
+  font-family: 'Space Mono', monospace;
+  font-size: 8px;
+  fill: var(--text3);
+  text-anchor: middle;
+}
+.chart-point {
+  cursor: pointer;
+  transition: r 0.15s;
+}
+.chart-point:hover { stroke-width: 2; }
+.chart-tooltip {
+  position: absolute;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 10;
+  white-space: nowrap;
+  font-family: 'Space Mono', monospace;
+}
+.chart-tooltip.show { opacity: 1; }
+.chart-tooltip .tt-date { color: var(--text3); margin-bottom: 4px; }
+.chart-tooltip .tt-score { font-size: 16px; font-weight: 700; }
+.chart-tooltip .tt-meta { color: var(--text2); font-size: 10px; margin-top: 2px; }
+.chart-legend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.chart-legend-item { display: flex; align-items: center; gap: 6px; }
+.chart-legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+.chart-legend-line { width: 16px; height: 0; border-top: 2px dashed var(--text3); }
+
+@media (max-width: 520px) {
+  .chart-section { padding: 0 12px 30px; }
+  .chart-svg { height: 180px; }
+}
+
 .timeline-score-tip {
   position: fixed;
   font-family: 'Space Mono', monospace;
@@ -738,6 +824,23 @@ body::before {
   </div>
 </div>
 <div class="event-list" id="eventList"></div>
+
+<section class="chart-section anim anim-d3">
+  <div class="chart-header">
+    <span class="chart-title">TACOりそう度の推移</span>
+    <span class="chart-meta" id="chartMeta">過去30日間</span>
+  </div>
+  <div class="chart-wrap" id="chartWrap">
+    <svg class="chart-svg" id="chartSvg" viewBox="0 0 800 220" preserveAspectRatio="none"></svg>
+    <div class="chart-tooltip" id="chartTooltip"></div>
+  </div>
+  <div class="chart-legend">
+    <div class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--guac);"></span>0-49 平穏</div>
+    <div class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--queso);"></span>50-79 警戒</div>
+    <div class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--salsa);"></span>80+ 危険水域</div>
+    <div class="chart-legend-item"><span class="chart-legend-line"></span>TACOイベント発生日</div>
+  </div>
+</section>
 
 </div>
 
@@ -1043,6 +1146,158 @@ function loadData(filter) {
   });
 }
 
+// ---- Score history chart ----
+function loadScoreHistory() {
+  Promise.all([
+    fetch('/api/score-history?days=30').then(function(r) { return r.json(); }),
+    fetch('/api/events').then(function(r) { return r.json(); })
+  ]).then(function(results) {
+    renderChart(results[0] || [], results[1] || []);
+  }).catch(function() {});
+}
+
+function chartColor(s) {
+  return s >= 80 ? 'var(--salsa)' : s >= 50 ? 'var(--queso)' : 'var(--guac)';
+}
+
+function renderChart(history, events) {
+  var svg = document.getElementById('chartSvg');
+  var tooltip = document.getElementById('chartTooltip');
+  var meta = document.getElementById('chartMeta');
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+  if (!history || history.length === 0) {
+    var fo = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+    fo.setAttribute('x', '0'); fo.setAttribute('y', '0');
+    fo.setAttribute('width', '800'); fo.setAttribute('height', '220');
+    var msg = document.createElement('div');
+    msg.className = 'chart-empty';
+    msg.innerHTML = 'まだデータがありません<br><span style="font-size:10px;">日次スクリーニング実行後に表示されます</span>';
+    fo.appendChild(msg);
+    svg.appendChild(fo);
+    return;
+  }
+
+  var W = 800, H = 220;
+  var padL = 36, padR = 16, padT = 16, padB = 28;
+  var plotW = W - padL - padR;
+  var plotH = H - padT - padB;
+
+  // X domain: now → 30 days ago
+  var now = Date.now();
+  var msPerDay = 86400000;
+  var xMin = now - 30 * msPerDay;
+  var xMax = now;
+  var xRange = xMax - xMin;
+
+  function xPos(ts) { return padL + ((ts - xMin) / xRange) * plotW; }
+  function yPos(score) { return padT + plotH - (score / 100) * plotH; }
+
+  function el(name, attrs) {
+    var e = document.createElementNS('http://www.w3.org/2000/svg', name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  // Horizontal grid lines (0, 25, 50, 75, 100)
+  [0, 25, 50, 75, 100].forEach(function(v) {
+    var y = yPos(v);
+    svg.appendChild(el('line', { x1: padL, y1: y, x2: W - padR, y2: y, class: 'chart-grid-line' }));
+    var lbl = el('text', { x: padL - 6, y: y + 3, 'text-anchor': 'end', class: 'chart-axis-label' });
+    lbl.textContent = v;
+    svg.appendChild(lbl);
+  });
+
+  // X-axis date labels (today, -7d, -14d, -21d, -28d)
+  [0, 7, 14, 21, 28].forEach(function(daysAgo) {
+    var ts = now - daysAgo * msPerDay;
+    var x = xPos(ts);
+    var d = new Date(ts);
+    var label = (d.getMonth() + 1) + '/' + d.getDate();
+    var lbl = el('text', { x: x, y: H - 8, 'text-anchor': 'middle', class: 'chart-axis-label' });
+    lbl.textContent = label;
+    svg.appendChild(lbl);
+  });
+
+  // Event vertical lines (TACO event dates within range)
+  var eventsInRange = events.filter(function(ev) {
+    var d = ev.date_iso || (ev.date && ev.date.replace(/\./g, '-'));
+    if (!d) return false;
+    var ts = new Date(d).getTime();
+    return ts >= xMin && ts <= xMax;
+  });
+  eventsInRange.forEach(function(ev) {
+    var d = ev.date_iso || ev.date.replace(/\./g, '-');
+    var ts = new Date(d).getTime();
+    var x = xPos(ts);
+    svg.appendChild(el('line', { x1: x, y1: padT, x2: x, y2: padT + plotH, class: 'chart-event-line' }));
+    var tag = el('text', { x: x, y: padT + 10, class: 'chart-event-tag' });
+    tag.textContent = '●';
+    svg.appendChild(tag);
+  });
+
+  // Build polyline path
+  var points = history.map(function(h) {
+    return { x: xPos(new Date(h.timestamp).getTime()), y: yPos(h.score), data: h };
+  });
+
+  // Area fill (from line down to bottom)
+  if (points.length >= 2) {
+    var areaPath = 'M ' + points[0].x + ' ' + (padT + plotH);
+    points.forEach(function(p) { areaPath += ' L ' + p.x + ' ' + p.y; });
+    areaPath += ' L ' + points[points.length - 1].x + ' ' + (padT + plotH) + ' Z';
+    var avgScore = points.reduce(function(a, p) { return a + p.data.score; }, 0) / points.length;
+    svg.appendChild(el('path', { d: areaPath, class: 'chart-area', fill: chartColor(Math.round(avgScore)) }));
+  }
+
+  // Line: split into segments by color band
+  if (points.length >= 2) {
+    for (var i = 0; i < points.length - 1; i++) {
+      var p1 = points[i], p2 = points[i + 1];
+      var avg = (p1.data.score + p2.data.score) / 2;
+      svg.appendChild(el('line', {
+        x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y,
+        class: 'chart-line', stroke: chartColor(avg),
+      }));
+    }
+  }
+
+  // Points (with hover)
+  points.forEach(function(p) {
+    var radius = p.data.score >= 80 ? 4 : 3;
+    var c = el('circle', {
+      cx: p.x, cy: p.y, r: radius,
+      fill: chartColor(p.data.score), stroke: 'var(--bg2)', 'stroke-width': 1.5,
+      class: 'chart-point',
+    });
+    c.addEventListener('mouseenter', function(e) {
+      var d = new Date(p.data.timestamp);
+      var dateStr = d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' +
+                    String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+      var typeLabel = p.data.type === 'open' ? '開場' : p.data.type === 'close' ? '閉場' : '手動';
+      var meta = [];
+      if (p.data.vix != null) meta.push('VIX ' + p.data.vix.toFixed(1));
+      if (p.data.put_call_ratio != null) meta.push('PCR ' + p.data.put_call_ratio.toFixed(2));
+      if (p.data.option_volume_ratio != null) meta.push('Vol ' + p.data.option_volume_ratio.toFixed(2) + 'x');
+      tooltip.innerHTML =
+        '<div class="tt-date">' + dateStr + ' [' + typeLabel + ']</div>' +
+        '<div class="tt-score" style="color:' + chartColor(p.data.score) + '">' + p.data.score + '<span style="font-size:10px; color:var(--text3);">/100</span></div>' +
+        (meta.length ? '<div class="tt-meta">' + meta.join(' · ') + '</div>' : '');
+      var rect = c.getBoundingClientRect();
+      var wrapRect = document.getElementById('chartWrap').getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + rect.width / 2 - 70) + 'px';
+      tooltip.style.top = (rect.top - wrapRect.top - 70) + 'px';
+      tooltip.classList.add('show');
+    });
+    c.addEventListener('mouseleave', function() {
+      tooltip.classList.remove('show');
+    });
+    svg.appendChild(c);
+  });
+
+  meta.textContent = '直近 ' + points.length + ' 件 / 30日間';
+}
+
 // Load latest market data for simulator defaults
 function loadMarketData() {
   fetch('/api/market/latest').then(function(r) { return r.json(); }).then(function(data) {
@@ -1057,6 +1312,7 @@ function loadMarketData() {
 
 loadData(null);
 loadMarketData();
+loadScoreHistory();
 
 // Simulator
 (function() {

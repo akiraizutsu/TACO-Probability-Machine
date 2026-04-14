@@ -14,6 +14,7 @@ def start_scheduler():
         run_daily_screening,
         trigger="cron",
         hour=13, minute=30,
+        kwargs={"screening_type": "open"},
         id="screening_nyse_open",
         replace_existing=True,
     )
@@ -22,6 +23,7 @@ def start_scheduler():
         run_daily_screening,
         trigger="cron",
         hour=20, minute=0,
+        kwargs={"screening_type": "close"},
         id="screening_nyse_close",
         replace_existing=True,
     )

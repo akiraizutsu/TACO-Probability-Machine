@@ -42,3 +42,20 @@ class ScreeningLog(Base):
     status: Mapped[str] = mapped_column(String, default="success")
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     new_candidates: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class ScoreHistory(Base):
+    """Append-only log of every TACO score calculation.
+
+    One row per screening run (2x/day + manual). Used for the time-series chart.
+    """
+    __tablename__ = "score_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    score: Mapped[int] = mapped_column(Integer)
+    vix: Mapped[float | None] = mapped_column(Float, nullable=True)
+    put_call_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)
+    option_volume_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)
+    polymarket_anomaly_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    screening_type: Mapped[str] = mapped_column(String(20), default="manual")  # open / close / manual
