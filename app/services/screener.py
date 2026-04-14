@@ -4,7 +4,7 @@ import logging
 from datetime import date, datetime
 from app.database import SessionLocal
 from app.models import MarketData, ScreeningLog
-from app.services.market import fetch_vix, fetch_spy_options_volume, fetch_put_call_ratio
+from app.services.market import fetch_vix, fetch_spy_options_volume, fetch_put_call_ratio, reset_errors, last_errors
 from app.services.polymarket import fetch_political_markets, estimate_new_accounts, detect_anomalies
 
 logger = logging.getLogger(__name__)
@@ -29,6 +29,7 @@ def run_daily_screening():
     db = SessionLocal()
     try:
         today = date.today()
+        reset_errors()
 
         # 1. Market data
         vix = fetch_vix()
@@ -64,7 +65,8 @@ def run_daily_screening():
             ))
 
         # 5. Log
-        summary = f"VIX={vix}, PCR={pcr}, VolRatio={vol_ratio}, PolyAccts={poly_accounts}, Score={score}, Anomalies={len(anomalies)}"
+        err_str = " | errors: " + "; ".join(f"{k}={v}" for k, v in last_errors.items()) if last_errors else ""
+        summary = f"VIX={vix}, PCR={pcr}, VolRatio={vol_ratio}, PolyAccts={poly_accounts}, Score={score}, Anomalies={len(anomalies)}{err_str}"
         db.add(ScreeningLog(
             run_at=datetime.utcnow(), status="success",
             summary=summary, new_candidates=len(anomalies),

@@ -66,3 +66,17 @@ def run_screening(background_tasks: BackgroundTasks, db: Session = Depends(get_d
     from app.services.screener import run_daily_screening
     background_tasks.add_task(run_daily_screening)
     return {"status": "started"}
+
+
+@router.get("/screening/logs")
+def screening_logs(limit: int = 10, db: Session = Depends(get_db)):
+    rows = db.query(ScreeningLog).order_by(desc(ScreeningLog.run_at)).limit(limit).all()
+    return [
+        {
+            "run_at": r.run_at.isoformat(),
+            "status": r.status,
+            "summary": r.summary,
+            "new_candidates": r.new_candidates,
+        }
+        for r in rows
+    ]
