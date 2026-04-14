@@ -2,6 +2,7 @@
 import asyncio
 import logging
 from datetime import date, datetime
+from sqlalchemy import desc
 from app.database import SessionLocal
 from app.models import MarketData, ScreeningLog
 from app.services.market import fetch_vix, fetch_spy_options_volume, fetch_put_call_ratio, reset_errors, last_errors
@@ -32,8 +33,19 @@ def run_daily_screening():
         reset_errors()
 
         # 1. Market data
+        # Historical avg from our own DB (last 20 days, excluding today)
+        history = (
+            db.query(MarketData.spy_volume)
+            .filter(MarketData.date < today, MarketData.spy_volume.isnot(None))
+            .order_by(desc(MarketData.date))
+            .limit(20)
+            .all()
+        )
+        hist_vols = [v[0] for v in history if v[0] and v[0] > 0]
+        historical_avg = int(sum(hist_vols) / len(hist_vols)) if hist_vols else None
+
         vix = fetch_vix()
-        spy_vol, spy_avg = fetch_spy_options_volume()
+        spy_vol, spy_avg = fetch_spy_options_volume(historical_avg=historical_avg)
         pcr = fetch_put_call_ratio()
         vol_ratio = round(spy_vol / spy_avg, 2) if spy_vol and spy_avg and spy_avg > 0 else None
 
