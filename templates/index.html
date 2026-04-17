@@ -162,6 +162,22 @@ body::before {
   margin-top: 16px;
   letter-spacing: 0.5px;
 }
+.peak-ref {
+  margin-top: 14px;
+  font-size: 11px;
+  color: var(--text3);
+  font-family: 'Space Mono', monospace;
+  letter-spacing: 0.3px;
+}
+.peak-ref a {
+  color: var(--text3);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--border2);
+  padding-bottom: 1px;
+  cursor: pointer;
+}
+.peak-ref a:hover { color: var(--text2); border-bottom-color: var(--text3); }
+.peak-ref .peak-num { color: var(--salsa); font-weight: 700; }
 
 .sim-section {
   max-width: 560px;
@@ -201,6 +217,14 @@ body::before {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 24px;
+}
+.sim-intro {
+  font-size: 12px;
+  color: var(--text3);
+  line-height: 1.7;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--border);
 }
 .sim-row {
   display: flex;
@@ -765,11 +789,12 @@ body::before {
       <path class="gauge-bg" d="M 30 150 A 120 120 0 0 1 270 150" />
       <path class="gauge-fill" id="gaugeFill" d="M 30 150 A 120 120 0 0 1 270 150" />
       <text class="gauge-val" x="150" y="130" id="gaugeVal">—</text>
-      <text class="gauge-label" x="150" y="155">TACOりそう度</text>
+      <text class="gauge-label" x="150" y="155">今日のTACOりそう度</text>
     </svg>
   </div>
   <br>
   <span class="status-badge" id="statusBadge">...</span>
+  <div class="peak-ref" id="peakRef"></div>
 </section>
 
 <section class="sim-section anim anim-d1">
@@ -779,25 +804,39 @@ body::before {
   </button>
   <div class="sim-body" id="simBody">
     <div class="sim-inner">
-      <div class="sim-row">
-        <span class="sim-label">VIX指数</span>
-        <input type="range" class="sim-slider" id="simVix" min="10" max="80" value="20" step="0.5">
-        <span class="sim-val mono" id="simVixVal">20.0</span>
+      <div class="sim-intro">
+        風刺的には「嵐の後に静まった」＋「何か仕込まれている」状態が最も危険。<br>
+        平穏時は低スコア、VIXが直前の高値から下がった後もオプションが動いている時に上がる。
       </div>
       <div class="sim-row">
-        <span class="sim-label">Put/Callレシオ</span>
-        <input type="range" class="sim-slider" id="simPcr" min="0.5" max="2.0" value="0.7" step="0.01">
-        <span class="sim-val mono" id="simPcrVal">0.70</span>
+        <span class="sim-label">現在のVIX</span>
+        <input type="range" class="sim-slider" id="simVix" min="10" max="60" value="18" step="0.5">
+        <span class="sim-val mono" id="simVixVal">18.0</span>
+      </div>
+      <div class="sim-row">
+        <span class="sim-label">過去7日最高VIX</span>
+        <input type="range" class="sim-slider" id="simVixPeak" min="10" max="80" value="20" step="0.5">
+        <span class="sim-val mono" id="simVixPeakVal">20.0</span>
       </div>
       <div class="sim-row">
         <span class="sim-label">オプション出来高倍率</span>
-        <input type="range" class="sim-slider" id="simVol" min="1" max="50" value="1" step="0.5">
+        <input type="range" class="sim-slider" id="simVol" min="0.5" max="10" value="1" step="0.1">
         <span class="sim-val mono" id="simVolVal">1.0x</span>
       </div>
       <div class="sim-row">
-        <span class="sim-label">Polymarket新規垢</span>
-        <input type="range" class="sim-slider" id="simPoly" min="0" max="500" value="5" step="1">
-        <span class="sim-val mono" id="simPolyVal">5</span>
+        <span class="sim-label">Put/Callレシオ</span>
+        <input type="range" class="sim-slider" id="simPcr" min="0.3" max="2.5" value="1.0" step="0.01">
+        <span class="sim-val mono" id="simPcrVal">1.00</span>
+      </div>
+      <div class="sim-row">
+        <span class="sim-label">Polymarket活動度</span>
+        <input type="range" class="sim-slider" id="simPoly" min="0" max="80000" value="28000" step="500">
+        <span class="sim-val mono" id="simPolyVal">28,000</span>
+      </div>
+      <div class="sim-row">
+        <span class="sim-label">Polymarket基準値</span>
+        <input type="range" class="sim-slider" id="simPolyBase" min="0" max="60000" value="28000" step="500">
+        <span class="sim-val mono" id="simPolyBaseVal">28,000</span>
       </div>
       <div class="sim-result">
         <div class="sim-score-label">シミュレートスコア</div>
@@ -847,22 +886,32 @@ body::before {
 <section class="method">
   <h2>算出ロジック（半分マジ）</h2>
   <p>
-    TACOりそう度は、各イベント発表前に観測された「異常な取引パターン」の強度を複合的にスコアリングしたものです。
-    事前シグナルの時間窓（短いほど高スコア）、異常取引量の通常比倍率、推定利益規模、
-    新規アカウントの急増パターン、複数市場での同時異常発生を要素として算出しています。
+    <strong>TACOりそう度の本質は「嵐の後の静けさ＋仕込み取引」の検知です。</strong>
+    市場が荒れている時は「普通のパニック」。TACOの瞬間はむしろ、
+    <em>緊張がいったん解けて一見静まっているのに、一部の取引だけが先回りしている</em>時に起こります。
+    つまり平常時のスコアは低く、トランプが次のプロレスを仕込みかけた気配がある時だけ上がる設計です。
   </p>
   <p>
-    スコアが高いからといって「次もTACOる」とは限りません。
-    ただし、過去6件のイベント全てで、発表前に統計的に説明困難な取引パターンが確認されている事実は、
-    記録として残す価値があると考えています。
+    4つのシグナルの合算（0-100）:
+  </p>
+  <ul style="font-size:13px; color:var(--text2); line-height:1.9; margin-bottom:16px; padding-left:20px;">
+    <li><strong>嵐の後の静けさ（0-40点）</strong>: 過去7日のVIX最高値から現在値までの下落幅。大きく下がっているほど「緊張が解けたように見える」状態。</li>
+    <li><strong>平穏時の異常取引（-15 〜 +40点）</strong>: VIX &lt; 20（平穏）なのにオプション出来高が通常比2倍超なら大加点。VIX &gt;= 25（パニック）の時は単なるヘッジなので減点。</li>
+    <li><strong>Polymarketスパイク（0-20点）</strong>: 政治系マーケットの活動量が直近7日の基準値を大きく超えた時だけ加点。</li>
+    <li><strong>Put/Call極端値（+10点）</strong>: PCR &gt; 1.8 または &lt; 0.5 の極端な偏りに反応するサブシグナル。</li>
+  </ul>
+  <p>
+    過去6件のイベントは、この「平穏に見える状態で一部が動いている」パターンが共通していました。
+    スコアが高い ≠ 明日TACOる、ですが、高スコアが続く局面は「何か仕込まれている可能性」を示唆します。
   </p>
   <p>
-    全データは公開情報（SEC開示、取引所データ、ブロックチェーン上のトランザクション、報道）に基づいています。
+    全データは公開情報（CBOE delayed quotes、取引所データ、ブロックチェーン上のトランザクション、報道）に基づいています。
+    市場データはNYSE開場・閉場の1日2回自動取得しています。
   </p>
   <div class="sources">
-    Sources: Reuters, Financial Times, NPR, Unusual Whales,<br>
-    ProPublica, Al Jazeera, Polymarket blockchain data,<br>
-    LSEG / Dow Jones Market Data, Dune Analytics
+    Sources: CBOE delayed quotes, Reuters, Financial Times, NPR, Unusual Whales,<br>
+    ProPublica, Al Jazeera, Polymarket API, Dune Analytics,<br>
+    LSEG / Dow Jones Market Data
   </div>
 </section>
 
@@ -990,6 +1039,7 @@ function renderEvents(evts) {
     var card = document.createElement('div');
     card.className = 'event-card';
     card.setAttribute('data-type', ev.type);
+    card.setAttribute('data-event-id', ev.id);
 
     var tagClass = ev.type === 'tariff' ? 'tag-tariff' : ev.type === 'military' ? 'tag-military' : 'tag-geopolitical';
 
@@ -1021,7 +1071,7 @@ function renderEvents(evts) {
     list.appendChild(card);
   });
 
-  if (sorted.length > 0) animateGauge(sorted[0].score);
+  renderPeakRef();
 }
 
 function parseDate(d) {
@@ -1298,34 +1348,103 @@ function renderChart(history, events) {
   meta.textContent = '直近 ' + points.length + ' 件 / 30日間';
 }
 
-// Load latest market data for simulator defaults
-function loadMarketData() {
+// Load today's live TACO score (the main gauge) and hydrate simulator defaults.
+function loadTodayScore() {
   fetch('/api/market/latest').then(function(r) { return r.json(); }).then(function(data) {
-    if (data && data.vix) {
-      document.getElementById('simVix').value = data.vix;
-      document.getElementById('simPcr').value = data.put_call_ratio || 0.7;
-      document.getElementById('simVol').value = data.volume_ratio || 1;
-      document.getElementById('simPoly').value = data.polymarket_new_accounts || 5;
+    if (!data || data.taco_score == null) {
+      animateGauge(0);
+      return;
     }
-  }).catch(function() {});
+    animateGauge(data.taco_score);
+    // Hydrate simulator with today's values (if sliders exist)
+    var simVix = document.getElementById('simVix');
+    if (simVix && data.vix != null) {
+      simVix.value = data.vix;
+      document.getElementById('simVixPeak').value = Math.max(data.vix, parseFloat(document.getElementById('simVixPeak').value) || data.vix);
+      if (data.put_call_ratio != null) document.getElementById('simPcr').value = data.put_call_ratio;
+      if (data.volume_ratio != null) document.getElementById('simVol').value = data.volume_ratio;
+      if (data.polymarket_new_accounts != null) {
+        document.getElementById('simPoly').value = data.polymarket_new_accounts;
+        document.getElementById('simPolyBase').value = data.polymarket_new_accounts;
+      }
+      // trigger UI update
+      var ev = new Event('input');
+      document.getElementById('simVix').dispatchEvent(ev);
+    }
+  }).catch(function() { animateGauge(0); });
+}
+
+// Render "過去最高" reference below the gauge.
+function renderPeakRef() {
+  var box = document.getElementById('peakRef');
+  if (!box || !EVENTS.length) return;
+  var sorted = EVENTS.slice().sort(function(a, b) { return b.score - a.score; });
+  var top = sorted[0];
+  box.innerHTML = '過去最高: <span class="peak-num">' + top.score + '</span> — <a data-peak-id="' + top.id + '">' + top.name + ' (' + top.date + ')</a>';
+  var link = box.querySelector('a');
+  if (link) link.addEventListener('click', function() {
+    var card = document.querySelector('.event-card[data-event-id="' + top.id + '"]');
+    if (card) {
+      card.classList.add('open');
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
 }
 
 loadData(null);
-loadMarketData();
+loadTodayScore();
 loadScoreHistory();
+
+// -------- New TACO scoring logic (mirrors backend app/services/screener.py) --------
+function calcTacoScore(vix, pcr, volRatio, polyAccounts, recentMaxVix, polyBaseline) {
+  function clp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  var breakdown = { calm_before_storm: 0, unusual_in_calm: 0, polymarket_spike: 0, pcr_extreme: 0 };
+
+  // Signal 1: Calm before storm (0-40)
+  if (recentMaxVix != null && vix != null) {
+    var drop = recentMaxVix - vix;
+    if (drop > 0) breakdown.calm_before_storm = clp(drop * 5, 0, 40);
+  }
+  // Signal 2: Unusual activity in calm market (-15 to +40)
+  if (vix != null && volRatio != null) {
+    if (vix < 20) {
+      if (volRatio > 1) breakdown.unusual_in_calm = clp((volRatio - 1) * 20, 0, 40);
+    } else if (vix < 25) {
+      if (volRatio > 1) breakdown.unusual_in_calm = clp((volRatio - 1) * 8, 0, 20);
+    } else {
+      if (volRatio > 1.5) breakdown.unusual_in_calm = -clp((volRatio - 1) * 4, 0, 15);
+    }
+  }
+  // Signal 3: Polymarket spike (0-20)
+  if (polyAccounts != null && polyBaseline && polyBaseline > 0) {
+    var ratio = polyAccounts / polyBaseline;
+    if (ratio > 1.2) breakdown.polymarket_spike = clp((ratio - 1) * 30, 0, 20);
+  } else if (polyAccounts != null && !polyBaseline && polyAccounts > 40000) {
+    breakdown.polymarket_spike = clp((polyAccounts - 40000) / 2000, 0, 20);
+  }
+  // Sub: PCR extreme (+10)
+  if (pcr != null && (pcr > 1.8 || pcr < 0.5)) breakdown.pcr_extreme = 10;
+
+  var total = breakdown.calm_before_storm + breakdown.unusual_in_calm + breakdown.polymarket_spike + breakdown.pcr_extreme;
+  return { score: Math.round(clp(total, 0, 100)), breakdown: breakdown };
+}
 
 // Simulator
 (function() {
   var toggle = document.getElementById('simToggle');
   var body = document.getElementById('simBody');
   var vix = document.getElementById('simVix');
+  var vixPeak = document.getElementById('simVixPeak');
   var pcr = document.getElementById('simPcr');
   var vol = document.getElementById('simVol');
   var poly = document.getElementById('simPoly');
+  var polyBase = document.getElementById('simPolyBase');
   var vixVal = document.getElementById('simVixVal');
+  var vixPeakVal = document.getElementById('simVixPeakVal');
   var pcrVal = document.getElementById('simPcrVal');
   var volVal = document.getElementById('simVolVal');
   var polyVal = document.getElementById('simPolyVal');
+  var polyBaseVal = document.getElementById('simPolyBaseVal');
   var scoreEl = document.getElementById('simScore');
   var applyBtn = document.getElementById('simApply');
   var resetBtn = document.getElementById('simReset');
@@ -1336,43 +1455,47 @@ loadScoreHistory();
     body.classList.toggle('open');
   });
 
-  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function fmtNum(n) { return Number(n).toLocaleString('en-US'); }
 
-  function calcScore() {
-    var vixNorm = clamp((parseFloat(vix.value) - 12) / (80 - 12) * 100, 0, 100);
-    var pcrNorm = clamp((parseFloat(pcr.value) - 0.5) / (2.0 - 0.5) * 100, 0, 100);
-    var volNorm = clamp((parseFloat(vol.value) - 1) / (50 - 1) * 100, 0, 100);
-    var polyNorm = clamp(parseFloat(poly.value) / 500 * 100, 0, 100);
-    return Math.round(clamp(vixNorm * 0.25 + pcrNorm * 0.20 + volNorm * 0.35 + polyNorm * 0.20, 0, 100));
+  function calc() {
+    return calcTacoScore(
+      parseFloat(vix.value),
+      parseFloat(pcr.value),
+      parseFloat(vol.value),
+      parseFloat(poly.value),
+      parseFloat(vixPeak.value),
+      parseFloat(polyBase.value)
+    );
   }
 
   function updateSim() {
     vixVal.textContent = parseFloat(vix.value).toFixed(1);
+    vixPeakVal.textContent = parseFloat(vixPeak.value).toFixed(1);
     pcrVal.textContent = parseFloat(pcr.value).toFixed(2);
     volVal.textContent = parseFloat(vol.value).toFixed(1) + 'x';
-    polyVal.textContent = poly.value;
-    var s = calcScore();
-    scoreEl.textContent = s;
-    scoreEl.style.color = scoreColor(s);
+    polyVal.textContent = fmtNum(poly.value);
+    polyBaseVal.textContent = fmtNum(polyBase.value);
+    var r = calc();
+    scoreEl.textContent = r.score;
+    scoreEl.style.color = scoreColor(r.score);
   }
 
-  [vix, pcr, vol, poly].forEach(function(el) {
+  [vix, vixPeak, pcr, vol, poly, polyBase].forEach(function(el) {
     el.addEventListener('input', updateSim);
   });
 
   applyBtn.addEventListener('click', function() {
     _simMode = true;
-    animateGauge(calcScore());
+    animateGauge(calc().score);
   });
 
   resetBtn.addEventListener('click', function() {
-    vix.value = 20; pcr.value = 0.7; vol.value = 1; poly.value = 5;
+    vix.value = 18; vixPeak.value = 20; pcr.value = 1.0; vol.value = 1;
+    poly.value = 28000; polyBase.value = 28000;
     updateSim();
     if (_simMode) {
       _simMode = false;
-      var evts = EVENTS;
-      var sorted = evts.slice().sort(function(a, b) { return b.score - a.score; });
-      if (sorted.length > 0) animateGauge(sorted[0].score);
+      loadTodayScore();
     }
   });
 
